@@ -66,18 +66,21 @@ class TestGithubOrgClient(unittest.TestCase):
         ("abc",),
     ])
     @patch("__main__.get_json")
-    def test_org(self, org_name, mock_get_json):
-        """Test org property returns correct dict and calls get_json."""
-        expected = {"login": org_name}
-        mock_get_json.return_value = expected
+    def test_org(self):
+    """Test org property with multiple org names."""
+    for org_name in ["google", "abc"]:
+        with patch("__main__.get_json") as mock_get_json:
+            expected = {"login": org_name}
+            mock_get_json.return_value = expected
 
-        client = GithubOrgClient(org_name)
-        result = client.org
+            client = GithubOrgClient(org_name)
+            result = client.org
 
-        mock_get_json.assert_called_once_with(
-            f"https://api.github.com/orgs/{org_name}"
-        )
-        self.assertEqual(result, expected)
+            mock_get_json.assert_called_once_with(
+                f"https://api.github.com/orgs/{org_name}"
+            )
+            self.assertEqual(result, expected)
+
 
     def test_public_repos_url(self):
         """Test _public_repos_url property returns the correct URL."""
