@@ -20,30 +20,22 @@ class TestGithubOrgClient(unittest.TestCase):
     organization data without performing real HTTP requests.
     """
 
-    @parameterized.expand([
-        ("google",),
-        ("abc",),
-    ])
-    @patch("client.get_json")
-    def test_org(self, org_name, mock_get_json):
-        """
-        Test that GithubOrgClient.org returns the correct value
-        and that get_json is called exactly once with the proper URL.
-        """
-        # Setup mock return value
-        expected = {"login": org_name}
-        mock_get_json.return_value = expected
+@parameterized.expand([
+    ("google",),
+    ("abc",),
+])
+@patch("client.GithubOrgClient.get_json")  # patch where it is used
+def test_org(self, org_name, mock_get_json):
+    expected = {"login": org_name}
+    mock_get_json.return_value = expected
 
-        client = GithubOrgClient(org_name)
-        result = client.org
+    client = GithubOrgClient(org_name)
+    result = client.org  # property access
 
-        # Assert get_json called once with the correct URL
-        mock_get_json.assert_called_once_with(
-            f"https://api.github.com/orgs/{org_name}"
-        )
-
-        # Assert the returned value is as expected
-        self.assertEqual(result, expected)
+    mock_get_json.assert_called_once_with(
+        f"https://api.github.com/orgs/{org_name}"
+    )
+    self.assertEqual(result, expected)
 
 
 if __name__ == "__main__":
