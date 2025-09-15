@@ -11,12 +11,14 @@ from unittest.mock import patch, PropertyMock
 from parameterized import parameterized
 from typing import Any, Dict, List
 
+
 # -------------------------
 # Minimal utils.get_json stub
 # -------------------------
 def get_json(url: str) -> Dict[str, Any]:
     """Stub function to simulate fetching JSON from a URL."""
     return {"stub": True}
+
 
 # -------------------------
 # GithubOrgClient definition
@@ -47,8 +49,11 @@ class GithubOrgClient:
     @staticmethod
     def has_license(repo: Dict[str, Any], license_key: str) -> bool:
         """Check if repo has the specified license key."""
-        return repo.get("license") is not None and \
-               repo["license"].get("key") == license_key
+        return (
+            repo.get("license") is not None
+            and repo["license"].get("key") == license_key
+        )
+
 
 # -------------------------
 # Unit tests
