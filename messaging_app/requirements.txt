@@ -1,0 +1,5 @@
+asgiref==3.9.1
+Django==5.2.6
+djangorestframework==3.16.1
+drf-nested-routers==0.95.0
+sqlparse==0.5.3

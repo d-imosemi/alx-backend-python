@@ -39,8 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'rest_framework',
-    'corsheaders',
-    'chat',
+    'chats',
 ]
 
 MIDDLEWARE = [
@@ -72,14 +71,18 @@ TEMPLATES = [
 
 
 REST_FRAMEWORK = {
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.IsAuthenticated",  # require authentication by default
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
     ],
 }
 
 WSGI_APPLICATION = 'messaging_app.wsgi.application'
 
-
+AUTH_USER_MODEL = "chats.User"
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
