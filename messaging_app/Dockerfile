@@ -1,14 +1,22 @@
 FROM python:3.10
 
-WORKDIR /home/messaging_app
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-COPY requirements.txt .
+# Set work directory
+WORKDIR /messaging_app
 
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy requirements.txt first to leverage Docker cache
+COPY Requirements.txt /messaging_app/
 
-COPY . .
+# Install dependencies
+RUN pip install --upgrade pip
+RUN pip install -r Requirements.txt
 
-# -p is not a valid command/property in Dockerfile
+# Copy the rest of the project
+COPY . /messaging_app/
+# Expose the port Django runs on
 EXPOSE 8000
 
+# Run the Django development server
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
