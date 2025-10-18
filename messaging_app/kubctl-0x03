@@ -1,0 +1,121 @@
+#!/bin/bash
+
+# Rolling Update Monitoring Script
+# This script performs rolling update to version 2.0 and monitors for downtime
+
+set -e
+
+# Configuration
+TEST_URL="http://localhost:8080"
+REQUEST_INTERVAL=2  # seconds between test requests
+TOTAL_REQUESTS=0
+FAILED_REQUESTS=0
+
+# Function to check prerequisites
+check_prerequisites() {
+  # Check if kubectl is installed
+  if ! command -v kubectl &> /dev/null; then
+    echo "kubectl could not be found. Please install it first."
+    exit 1
+  fi
+
+  # Check if the user is connected to a Kubernetes cluster
+  if ! kubectl cluster-info &> /dev/null; then
+    echo "You are not connected to a Kubernetes cluster."
+    exit 1
+  fi
+}
+
+# Function to apply rolling updates
+apply_rolling_updates() {
+    echo "Applying rolling updates to version 2.0..."
+    kubectl apply -f blue_deployment.yaml
+    echo "Rolling update triggered"
+}
+
+# Function to monitor rollout status
+monitor_rollout() {
+    sleep 5
+    local timeout=300
+    local counter=0
+
+    while [ $counter -lt $timeout ]; do
+        local status=$(kubectl rollout status deployment/blue_deployment.yaml --timeout=60s 2>&1 || true)
+        
+        if echo "$status" | grep -q "successfully rolled out"; then
+            echo "Rollout completed successfully!"
+            return 0
+        elif echo "$status" | grep -q "Waiting for rollout to finish"; then
+            echo "Rollout in progress... $(echo "$status" | grep -o 'waiting for [0-9]* out of [0-9]*')"
+            
+            # Show current pod status during rollout
+            echo ""
+            kubectl get pods -l app=messaging_app,version=blue --no-headers | head -5
+            echo ""
+        else
+            echo "Rollout status: $status"
+        fi
+        
+        sleep 10
+        counter=$((counter + 10))
+    done
+    
+   echo "Rollout monitoring timeout reached"
+    return 1
+}
+
+# Function to continuously test the application
+continuous_testing() {
+    local test_duration=$1
+    local end_time=$((SECONDS + test_duration))
+    
+    echo "Starting continuous application testing for ${test_duration}s..."
+    echo "Testing endpoint: $TEST_URL"
+    echo "Request interval: ${REQUEST_INTERVAL}s"
+    echo ""
+    
+    while [ $SECONDS -lt $end_time ]; do
+        local current_time=$(date '+%H:%M:%S')
+        local response_code=0
+        local response_time=0
+        
+        # Measure response time and get status code
+        response_time=$( { time -p curl -s -o /dev/null -w "%{http_code}" $TEST_URL/health/ > /tmp/response_code 2>/dev/null; } 2>&1 | grep real | awk '{print $2}' )
+        response_code=$(cat /tmp/response_code)
+        
+        TOTAL_REQUESTS=$((TOTAL_REQUESTS + 1))
+        
+        if [ "$response_code" = "200" ] || [ "$response_code" = "301" ] || [ "$response_code" = "302" ]; then
+            echo -e "${GREEN}[$current_time]${NC} Request $TOTAL_REQUESTS: HTTP $response_code (${response_time}s)"
+        else
+            FAILED_REQUESTS=$((FAILED_REQUESTS + 1))
+            echo -e "${RED}[$current_time]${NC} Request $TOTAL_REQUESTS: HTTP $response_code (${response_time}s) ${RED}FAILED${NC}"
+        fi
+        
+        sleep $REQUEST_INTERVAL
+    done
+}
+
+# Function to verify Rolling update completion
+verify_update() {
+    echo "Verifying rolling update completion..."
+
+    # Check all pods are running
+    local ready_pods=$(kubectl get deployment blue_deployment.yaml -o jsonpath='{.status.readyReplicas}')
+    local desired_pods=$(kubectl get deployment blue_deployment.yaml -o jsonpath='{.status.replicas}')
+    
+    if [ "$ready_pods" -eq "$desired_pods" ]; then
+        print_success "All $desired_pods pods are ready and running"
+    else
+        print_error "Pod readiness issue: $ready_pods/$desired_pods pods ready"
+        return 1
+    fi
+    
+    # Show final pod status
+    print_status "Final pod status:"
+    kubectl get pods -l app=messaging_app,version=blue -o wide
+    
+    # Show pod ages to verify they're new
+    print_status "Pod creation times:"
+    kubectl get pods -l app=messaging_app,version=blue -o jsonpath='{range .items[*]}{.metadata.name} {"\t"}{.status.startTime}{"\n"}{end}'
+}
