@@ -1,0 +1,108 @@
+#!/bin/bash
+
+# Scaling and Load testing Script for Kubernetes Cluster
+
+set -e
+
+# Function to check if a command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Function to check prerequisites
+check_prerequisites() {
+    echo "Checking prerequisites..."
+    if ! command_exists kubectl; then
+        echo "kubectl is not installed. Please install kubectl."
+        exit 1
+    fi
+    if ! command_exists minikube; then
+        echo "minikube is not installed. Please install minikube."
+        exit 1
+    fi
+    if ! command_exists wrk; then
+        echo "wrk is not installed. Installing wrk..."
+        if command_exists brew; then
+            brew install wrk
+        else
+            echo "Homebrew is not installed. Please install wrk manually."
+            exit 1
+        fi
+    fi
+    # Check if we can connect to the cluster
+    if ! kubectl cluster-info >/dev/null 2>&1; then
+        echo "Cannot connect to the Kubernetes cluster. Please ensure it is running."
+        exit 1
+    fi
+    echo "All prerequisites are met."
+}
+
+# Function to scale the deployment
+scale_deployment() {
+    local replicas=$1
+    echo "Scaling deployment to $replicas replicas..."
+    kubectl scale deployment messaging-app --replicas="$replicas"
+    echo "Scaling command issued. Waiting for pods to be ready..."
+    kubectl wait --for=condition=available --timeout=120s deployment/messaging-app
+    echo "Deployment scaled to $replicas replicas."
+    sleep 5
+        counter=$((counter + 5))
+    done
+    
+    if [ $counter -ge $timeout ]; then
+        print_error "Timeout waiting for pods to be ready"
+        exit 1
+    fi
+    echo "All pods are ready."
+}
+
+# Function to verify scaling
+verify_scaling() {
+    local expected_replicas=$1
+    echo "Verifying scaling to $expected_replicas replicas..."
+    local actual_replicas
+    actual_replicas=$(kubectl get deployment messaging-app -o jsonpath='{.status.availableReplicas}')
+    if [ "$actual_replicas" -eq "$expected_replicas" ]; then
+        echo "Scaling verified: $actual_replicas replicas are running."
+    else
+        echo "Scaling verification failed: Expected $expected_replicas but found $actual_replicas."
+        exit 1
+    fi
+    kubectl get pods
+    echo "Pod status:"
+    kubectl get pods -o wide
+}
+# Function to perform load testing
+perform_load_test() {
+    local url=$1
+    echo "Performing load test on $url..."
+    wrk -t2 -c100 -d30s "$url"
+    echo "Load test completed."
+}
+# Function to monitor resource usage
+monitor_resources() {
+    echo "Monitoring resource usage..."
+    kubectl top nodes
+    kubectl top pods
+    echo "Resource usage monitored."
+}
+
+# Main Execution function
+main() {
+    check_prerequisites
+    scale_deployment 3
+    verify_scaling 3
+    perform_load_test "http://messaging-app:8080"
+    monitor_resources
+}
+
+# Cleanup resources
+cleanup() {
+    echo "Cleaning up resources..."
+    kubectl delete deployment messaging-app
+    kubectl delete service messaging-app
+    echo "Cleanup completed."
+}
+
+# Run the main function
+main "$@"
