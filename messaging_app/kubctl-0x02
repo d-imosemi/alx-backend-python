@@ -1,0 +1,62 @@
+#!/bin/bash
+
+#  Blue-Green Deployment Script
+
+set -e
+
+# Function to check prerequisites
+check_prerequisites() {
+  # Check if kubectl is installed
+  if ! command -v kubectl &> /dev/null; then
+    echo "kubectl could not be found. Please install it first."
+    exit 1
+  fi
+
+  # Check if the user is connected to a Kubernetes cluster
+  if ! kubectl cluster-info &> /dev/null; then
+    echo "You are not connected to a Kubernetes cluster."
+    exit 1
+  fi
+}
+
+# Function to deploy both versions of the application
+deploy_applications() {
+  echo "Deploying blue version of the application..."
+  kubectl apply -f blue_deployment.yaml
+
+  echo "Deploying green version of the application..."
+  kubectl apply -f green_deployment.yaml
+
+  kubectl apply -f kubeservice.yaml
+}
+
+# Function to check logs for errors
+check_logs() {
+  echo "Checking logs for errors..."
+  kubectl logs -l app=messaging-app --tail=100
+}
+
+# Monitor the application
+monitor_application() {
+  echo "Monitoring the application..."
+  kubectl get pods -l app=messaging-app
+}
+
+# Function to clean up resources
+cleanup() {
+  echo "Cleaning up resources..."
+  kubectl delete -f blue_deployment.yaml
+  kubectl delete -f green_deployment.yaml
+  kubectl delete -f kubeservice.yaml
+}
+
+# Main execution function
+main() {
+  check_prerequisites
+  deploy_applications
+  check_logs
+  monitor_application
+  cleanup
+}
+
+main "$@"
