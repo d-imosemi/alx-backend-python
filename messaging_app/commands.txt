@@ -1,0 +1,14 @@
+minikube addons enable ingress
+
+kubectl wait --namespace ingress-nginx \
+  --for=condition=ready pod \
+  --selector=app.kubernetes.io/component=controller \
+  --timeout=120s
+
+kubectl apply -f ingress.yaml
+
+kubectl get ingress
+
+kubectl describe ingress django-app-ingress
+
+minikube ip
