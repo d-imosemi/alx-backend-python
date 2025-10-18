@@ -1,0 +1,42 @@
+# Ingress resource for messaging app
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: messaging-app-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  rules:
+  - host: messaging-app.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: messaging-app
+            port:
+              number: 8080
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: messaging-app
+            port:
+              number: 8080
+      - path: /admin
+        pathType: Prefix
+        backend:
+          service:
+            name: messaging-app
+            port:
+              number: 8080
+      - path: /static
+        pathType: Prefix
+        backend:
+          service:
+            name: messaging-app
+            port:
+              number: 8080
