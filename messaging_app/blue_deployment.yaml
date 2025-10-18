@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: messaging-app
+  labels:
+    app: messaging-app
+    version: blue
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: messaging-app
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: messaging-app
+        version: blue
+    spec:
+      containers:
+      - name: messaging-app
+        image: messaging-app:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: DATABASE_URL
+          value: "mysql://user:password@db:3306/messaging_app"
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: django-secret-key
+              key: SECRET_KEY
+        - name: DEBUG
+          value: "False"
+        - name: ALLOWED_HOSTS
+          value: "localhost, 127.0.0.1"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: messaging-app-service
+spec:
+  type: ClusterIP
+
+  selector:
+    app: messaging-app
+    version: blue
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service
+spec:
+  type: ClusterIP
+  selector:
+    app: mysql
+    version: blue
+  ports:
+    - protocol: TCP
+      port: 3306
+      targetPort: 3306
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  labels:
+    app: mysql
+    version: blue
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "root"
+        - name: MYSQL_DATABASE
+          value: "messaging_app"
+        - name: MYSQL_USER
+          value: "user"
+        - name: MYSQL_PASSWORD
+          value: "password"
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+        - name: mysql-persistent-storage
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mysql-persistent-storage
+        persistentVolumeClaim:
+          claimName: mysql-pv-claim
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pv-claim
+  labels:
+    app: mysql
+    version: blue
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: standard
+---
