@@ -1,0 +1,38 @@
+#!/bin/bash
+# Kubernetes Cluster Management Script
+# This script starts a Kubernetes cluster and verifies its status
+# It also applies necessary configurations for the messaging app
+set -e
+
+# Function to start the Kubernetes cluster
+start_k8s_cluster() {
+    echo "Starting Kubernetes cluster..."
+    minikube start --driver=docker
+    echo "Kubernetes cluster started."
+}
+
+# Function to verify kubernetes cluster is running
+verify_k8s_cluster() {
+    echo "Verifying Kubernetes cluster status..."
+    if minikube status | grep -q "host: Running"; then
+        echo "Kubernetes cluster is running."
+    else
+        echo "Kubernetes cluster is not running. Exiting."
+        exit 1
+    fi
+}
+
+# Function to retrieve available pods using kubectl cluster-info.
+get_available_pods() {
+    echo "Retrieving available pods..."
+    kubectl get pods --all-namespaces
+}
+
+# Main execution function
+main() {
+    start_k8s_cluster
+    verify_k8s_cluster
+    get_available_pods
+    echo "Kubernetes cluster setup and verification complete."
+}
+main "$@"
