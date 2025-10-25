@@ -1,0 +1,49 @@
+pipeline {
+    agent any
+
+    tools {
+        'jenkins.plugins.shiningpanda.tools.PythonInstallation' 'Python-3.10'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    credentialsId: 'github-credentials',
+                    url: 'https://github.com/YOUR_GITHUB_USERNAME/alx-backend-python.git'
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh 'pip3 install -r messaging_app/requirements.txt'
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                sh 'python3 -m pytest --junitxml=messaging_app/test-reports/results.xml messaging_app/'
+            }
+            post {
+                always {
+                    junit 'messaging_app/test-reports/*.xml'
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t YOUR_DOCKERHUB_USERNAME/messaging-app:${BUILD_NUMBER} .'
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                    sh 'docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD'
+                    sh 'docker push YOUR_DOCKERHUB_USERNAME/messaging-app:${BUILD_NUMBER}'
+                }
+            }
+        }
+    }
+}
